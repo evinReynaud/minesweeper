@@ -6,6 +6,8 @@ That is, when a user clicks on a mine, it will try to move it elsewhere, as long
 
 The core implementation of the game is based on [this version](https://github.com/kubowania/minesweeper) by Ania Kubow.
 
+Deque implementation by Petka Antonov : [Github](https://github.com/petkaantonov/deque/blob/master/js/deque.js)
+
 ### MIT Licence
 
 Copyright (c) 2022 Evin Reynaud
