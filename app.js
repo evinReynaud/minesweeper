@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bombsArray = Array(bombAmount).fill('bomb')
     const emptyArray = Array(width * height - bombAmount).fill('valid')
     const gameArray = emptyArray.concat(bombsArray)
-    const shuffledArray = gameArray.sort(() => Math.random() - 0.5)
+    const shuffledArray = shuffle(gameArray)
 
     for (let i = 0; i < width * height; i++) {
       const square = document.createElement('div')
@@ -144,5 +144,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (i < width * (height - 1) && !isLeftEdge) f(i - 1 + width)
     if (i < width * (height - 1) && !isRightEdge) f(i + 1 + width)
     if (i < width * (height - 1)) f(i + width)
+  }
+
+  // More robust shuffle
+  function shuffle(array) {
+    let currentIndex = array.length
+    while (currentIndex !== 0) {
+      const randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+    }
+    return array;
   }
 })
