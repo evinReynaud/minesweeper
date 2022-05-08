@@ -37,20 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
         addFlag(square)
       }
     }
-
-    //add numbers
-    for (let i = 0; i < squares.length; i++) {
-      addNumber(i)
-    }
   }
 
   createBoard()
-
-  function addNumber(i) {
-    if (squares[i].classList.contains('valid')) {
-      squares[i].setAttribute('data', getAdjacentBombs(i))
-    }
-  }
 
   function getAdjacentBombs(i) {
     let total = 0
@@ -87,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
       gameOver(square)
     } else {
       const currentId = parseInt(square.id)
-      const total = square.getAttribute('data')
+      const total = getAdjacentBombs(currentId)
       square.classList.add('checked')
       if (total !== 0) {
         if (total === 1) square.classList.add('one')
