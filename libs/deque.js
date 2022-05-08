@@ -167,6 +167,10 @@ Deque.prototype.peekFront = function Deque$peekFront() {
     return this[this._front];
 };
 
+Deque.prototype.peek = function Deque$peek() {
+    return this.peekFront();
+};
+
 Deque.prototype.get = function Deque$get(index) {
     var i = index;
     if ((i !== (i | 0))) {
@@ -271,5 +275,3 @@ function getCapacity(capacity) {
             Math.max(16, capacity), 1073741824)
     );
 }
-
-module.exports = Deque;
