@@ -42,11 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
   createBoard()
 
   function getAdjacentBombs(i) {
-    let total = 0
-    applyToNeighbors(i, (j) => {
-      if (squares[j].classList.contains('bomb')) total++
-    })
-    return total
+    return getAdjacentType(i, 'bomb')
   }
 
   //add Flag with right click
@@ -73,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isGameOver) return
     if (square.classList.contains('checked') || square.classList.contains('flag')) return
     if (square.classList.contains('bomb')) {
-      gameOver(square)
+      tryAndSaveGame(square)
     } else {
       const currentId = parseInt(square.id)
       const total = getAdjacentBombs(currentId)
@@ -132,6 +128,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function getAdjacentType(i, type) {
+    let total = 0
+    applyToNeighbors(i, (j) => {
+      if (squares[j].classList.contains(type)) total++
+    })
+    return total
+  }
+
   function applyToNeighbors(i, f) {
     const isLeftEdge = (i % width === 0)
     const isRightEdge = (i % width === width - 1)
@@ -155,5 +159,111 @@ document.addEventListener('DOMContentLoaded', () => {
       [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
     }
     return array;
+  }
+
+  //////////////////////////
+  // Try and save feature //
+  //////////////////////////
+
+  function tryAndSaveGame(square) {
+    const shuffled = shuffleBoard(square)
+    if (!shuffled) {
+      gameOver(square)
+    } else {
+      click(square)
+    }
+  }
+
+  function shuffleBoard(square) {
+    const sat = new SATInstance()
+
+    const uncheckedSquares = []
+    const clauses = boardToClauses(uncheckedSquares)
+
+    clauses.forEach(clause => {
+      sat.parseClause(clause)
+    })
+
+    const partialSolution = sat.createSolution()
+    partialSolution.set(square.id, false) // Forces square to not have a bomb
+
+    const satSolutions = sat.solutions(partialSolution)
+
+    const actualSolutions = satSolutions.map(parseSolution)
+      .filter(solution => solution.length <= bombAmount)
+
+    if (actualSolutions.length > 0) {
+      const solution = actualSolutions[getRandomInt(actualSolutions.length)]
+      setBoardToConfiguration(solution, uncheckedSquares)
+      return true
+    }
+    return false
+  }
+
+  function boardToClauses(uncheckedSquares) {
+    return squares.flatMap(square => squareToClauses(square, uncheckedSquares))
+      .filter(c => c)
+  }
+
+  function squareToClauses(square, uncheckedSquares) {
+    const currentId = parseInt(square.id)
+    if (!square.classList.contains('checked')) {
+      // return [square.id + ' ~' + square.id] // replaced with unchecked square for optimization
+      if (getAdjacentClues(currentId) === 0) uncheckedSquares.push(square.id)
+      return []
+    }
+    let bombs = 0
+    let cells = []
+    applyToNeighbors(currentId, (j) => {
+      if (!squares[j].classList.contains('checked')) cells.push(j)
+      if (squares[j].classList.contains('bomb')) bombs++
+    })
+
+    return getClausesForBombsInCells(bombs, cells)
+  }
+
+  function getAdjacentClues(i) {
+    return getAdjacentType(i, 'checked')
+  }
+
+  function getClausesForBombsInCells(nbBombs, cells) {
+    if (nbBombs === 0) return []
+    return getPositiveDisjunctions(nbBombs, cells).concat(getNegativeDisjunctions(nbBombs, cells))
+  }
+
+  function getPositiveDisjunctions(nbBombs, cells) {
+    return subsets(cells.length - nbBombs + 1, cells)
+      .map(subset => subset.join(' '))
+  }
+
+  function getNegativeDisjunctions(nbBombs, cells) {
+    return subsets(nbBombs + 1, cells)
+      .map(subset => subset
+        .map(v => '~' + v)
+        .join(' '))
+  }
+
+  function parseSolution(satSolution) {
+    return satSolution.split(', ').filter(v => !v.startsWith('~'))
+  }
+
+  function setBoardToConfiguration(solution, uncheckedSquares) {
+    solution = solution.filter(s => s !== "")
+    const unselectedSquares = uncheckedSquares.filter(s => !solution.includes(s))
+
+    // Increase solution to fit the required number of bombs
+    while (solution.length < bombAmount) {
+      solution.push(unselectedSquares.splice(getRandomInt(unselectedSquares.length), 1)[0])
+    }
+
+    squares.forEach(square => {
+      square.classList.remove('bomb')
+      square.classList.add('valid')
+    })
+
+    solution.forEach(index => {
+      squares[index].classList.remove('valid')
+      squares[index].classList.add('bomb')
+    })
   }
 })
