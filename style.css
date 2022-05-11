@@ -66,3 +66,16 @@ div {
   margin-top: 5px;
   color: #e76346;
 }
+
+#bombs-toggle {
+  display: none;
+}
+
+#bombs-toggle:checked ~ * .bomb{
+  background-color: #C3C3A3;
+}
+
+#toggle-btn {
+  cursor: inherit;
+}
+
