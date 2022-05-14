@@ -178,7 +178,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const sat = new SATInstance()
 
     const uncheckedSquares = []
-    const clauses = boardToClauses(uncheckedSquares)
+    const currentBombs = [] // actually current bombs WITHOUT clues pointing to them
+    const clauses = boardToClauses(uncheckedSquares, currentBombs)
+
+    // remove clicked bomb from the list
+    const currentId = parseInt(square.id)
+    currentBombs.splice(currentBombs.findIndex(v => v === currentId), 1)
 
     clauses.forEach(clause => {
       sat.parseClause(clause)
@@ -189,27 +194,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const satSolutions = sat.solutions(partialSolution)
 
-    const actualSolutions = satSolutions.map(parseSolution)
+    const actualSolutions = satSolutions.map(solution => parseSolution(solution).sort())
       .filter(solution => solution.length <= bombAmount)
 
     if (actualSolutions.length > 0) {
-      const solution = actualSolutions[getRandomInt(actualSolutions.length)]
-      setBoardToConfiguration(solution, uncheckedSquares)
+      const solution = selectAndCompleteSolution(actualSolutions, uncheckedSquares, currentBombs)
+      setBoardToConfiguration(solution)
       return true
     }
     return false
   }
 
-  function boardToClauses(uncheckedSquares) {
-    return squares.flatMap(square => squareToClauses(square, uncheckedSquares))
+  function boardToClauses(uncheckedSquares, currentBombs) {
+    return squares.flatMap(square => squareToClauses(square, uncheckedSquares, currentBombs))
       .filter(c => c)
   }
 
-  function squareToClauses(square, uncheckedSquares) {
+  function squareToClauses(square, uncheckedSquares, currentBombs) {
     const currentId = parseInt(square.id)
     if (!square.classList.contains('checked')) {
       // return [square.id + ' ~' + square.id] // replaced with unchecked square for optimization
-      if (getAdjacentClues(currentId) === 0) uncheckedSquares.push(square.id)
+      if (getAdjacentClues(currentId) === 0) {
+        if (square.classList.contains('bomb')) {
+          currentBombs.push(parseInt(square.id))
+        } else {
+          uncheckedSquares.push(square.id)
+        }
+      }
       return []
     }
     let bombs = 0
@@ -244,18 +255,49 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function parseSolution(satSolution) {
-    return satSolution.split(', ').filter(v => !v.startsWith('~'))
+    return satSolution.split(', ').filter(v => !v.startsWith('~') && v !== "")
+      .map(v => parseInt(v))
   }
 
-  function setBoardToConfiguration(solution, uncheckedSquares) {
-    solution = solution.filter(s => s !== "")
-    const unselectedSquares = uncheckedSquares.filter(s => !solution.includes(s))
+  function selectAndCompleteSolution(solutions, uncheckedSquares, currentBombs) {
+    const chosenSolution = selectSolution(solutions, currentBombs)
+    return completeSolution(chosenSolution, uncheckedSquares, currentBombs)
+  }
 
-    // Increase solution to fit the required number of bombs
+  function selectSolution(solutions, currentBombs) {
+    const weightedSolutions = solutions.map(solution => ({
+      solution: solution,
+      weight: getNbCommonMines(solution, currentBombs)
+    }))
+
+    const maxWeight = weightedSolutions.reduce((maxWeight, ws) => Math.max(maxWeight, ws.weight), 0)
+
+    // pre-select solutions that move as few mines as possible
+    const maxWeightSolutions = weightedSolutions.filter(ws => ws.weight === maxWeight)
+
+    return maxWeightSolutions[getRandomInt(maxWeightSolutions.length)].solution
+  }
+
+  // Increase solution to fit the required number of bombs
+  function completeSolution(solution, uncheckedSquares, currentBombs) {
+    const unusedBombs = currentBombs.filter(b => !solution.includes(b))
+    while (solution.length < bombAmount && unusedBombs.length > 0) {
+      solution.push(unusedBombs.splice(getRandomInt(unusedBombs.length), 1)[0])
+    }
+
+    const unselectedSquares = uncheckedSquares.filter(s => !solution.includes(s))
     while (solution.length < bombAmount) {
       solution.push(unselectedSquares.splice(getRandomInt(unselectedSquares.length), 1)[0])
     }
 
+    return solution
+  }
+
+  function getNbCommonMines(solution, currentBombs) {
+    return solution.reduce((total, id) => total + (currentBombs.includes(id) ? 1 : 0), 0)
+  }
+
+  function setBoardToConfiguration(solution) {
     squares.forEach(square => {
       square.classList.remove('bomb')
       square.classList.add('valid')
